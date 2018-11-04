@@ -5,7 +5,10 @@
 import copy
 
 GOALSTATE = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', ' ']]
-INITIALSTATE = [['1', '2', '3'], ['4', ' ', '6'], ['7', '5', '8']]
+INITIALSTATE = [['3', '2', '8'], ['4', '5', '6'], ['7', '1', ' ']]
+EXPANDEDSTATES = list()
+NUMEXPANSIONS = 0
+MAXQUEUESIZE = 0
 DIMENSIONS = 3
 
 #A class to define a point on the puzzle
@@ -39,11 +42,9 @@ class Puzzle:
     #Checks if one puzzle state is equal to another
     def __eq__( self, other ):
         if ( self._blank != other._blank ):
-            print(self._blank, other._blank)
             return False
         for i in range ( DIMENSIONS ):
             for j in range ( DIMENSIONS ):
-                print(self._state[i][j], other._state[i][j] )
                 if ( self._state[i][j] != other._state[i][j] ):
                     return False
         return True
@@ -67,8 +68,6 @@ class Puzzle:
         if ( cY < DIMENSIONS-1 ):
             newState[cX][cY], newState[cX][cY+1] = newState[cX][cY+1], newState[cX][cY]
             self._blank.set( y = (cY + 1) )
-        b = Puzzle(DIMENSIONS, newState)
-        return b
     def moveBlankUp( self ):
         cX = self._blank.getX() #the current X
         cY = self._blank.getY() #the current Y
@@ -87,32 +86,180 @@ class Puzzle:
 
 #use copy.deepcopy in order to create new instances of class :)
 class Node:
-    def __init__(self, puzz, g_n = 0):
-        self._state = copy.deepcopy(puzz)
+    def __init__(self, state, g_n = 0):
+        self._state = copy.deepcopy(state)
         self._g_n = g_n
+        self._f_n = g_n
+        self._prevState = None
+
     def __eq__ ( self, other ):
-        if( self._state == other._state ):
-            return True
-        return False
+        return self._state == other._state
+
     def getState(self):
         return self._state.getState()
-    def getMoves(self):
+    
+    def getPrevState(self):
+        return self._prevState
+
+    def getNumMoves(self):
         return self._g_n
+
+    def getWeight(self):
+        return self._f_n
+
+    def setWeight(self, val):
+        self._f_n = val
+    
+    def setPrevState( self, state ):
+        self._prevState = copy.deepcopy(state)
+
     def moveBlankRight( self ):
         self._state.moveBlankRight()
+        self._g_n += 1
+        return self
+
     def moveBlankLeft( self ):
         self._state.moveBlankLeft()
+        self._g_n += 1
+        return self
+
     def moveBlankUp( self ):
         self._state.moveBlankUp()
+        self._g_n += 1
+        return self
+
     def moveBlankDown(self ):
         self._state.moveBlankDown()
+        self._g_n += 1
+        return self
+
+    def goalTest( self ):
+        return self._state.getState() == GOALSTATE
+
     def disp( self ):
         self._state.disp()
 
+def hasBeenExpanded(node):
+    for i in range(len(EXPANDEDSTATES)):
+        if ( node.getState() == EXPANDEDSTATES[i].getState() ):
+            return True
+    EXPANDEDSTATES.append(copy.deepcopy(node))
+    return False
+
+def dequeue( nodesList ):
+    minWeight = nodesList[0].getWeight()
+    minloc = 0
+    for i in range ( 1, len( nodesList )):
+        if( nodesList[i].getWeight() < minWeight ):
+            minloc = i
+            mingn = nodesList[i].getNumMoves()
+    return minloc
+        
+def expand( node ):
+    possibleMoves = list()
+    if( not hasBeenExpanded(node) ):
+        NUMEXPANSIONS+=1
+        up = copy.deepcopy(node).moveBlankUp()
+        down = copy.deepcopy(node).moveBlankDown()
+        left = copy.deepcopy(node).moveBlankLeft()
+        right = copy.deepcopy(node).moveBlankRight()
+
+        possibleMoves.append(up)
+        possibleMoves.append(down)
+        possibleMoves.append(left)
+        possibleMoves.append(right)
+    
+
+        indexToRemove = list()
+        for i in range(len(possibleMoves)):
+            if (possibleMoves[i].getState() == node.getState()):
+                indexToRemove.append(i)
+            if ( possibleMoves[i].getPrevState() is not None): #previous state is initialized
+                #if we go back to the previous state
+                if (possibleMoves[i].getState() == possibleMoves[i].getPrevState()):
+                    indexToRemove.append(i)
+            possibleMoves[i].setPrevState(node.getState())
+            
+        #sort indices and reverse in order to remove all values
+        if(len(indexToRemove) > 0):
+            indexToRemove.reverse()
+            for i in range( len( indexToRemove ) ):
+                del possibleMoves[indexToRemove[i]]
+
+    return possibleMoves
+
+def queueingFunction( nodesToEnqueue, index, nodesList , heurestic ):
+    if ( nodesList is None ):
+        nodesList = list()
+    for i in range(len(nodesToEnqueue)):
+        nodesToEnqueue[i].setWeight = nodesToEnqueue[i].getNumMoves() + heurestic(nodesToEnqueue[i])
+        nodesList.insert(index, nodesToEnqueue[i])
+        index+=1
+
+    if( len(nodesList) > MAXQUEUESIZE ):
+        MAXQUEUESIZE = len(nodesList)
+    return nodesList
+
+#queueing function is the heurestic
+def generalSearch( problem, heurestic):
+    nodes = list()
+    nodes.append(Node(state = problem))
+    while( True ):
+        if( len(nodes) == 0 ):
+            print('fail')
+            return None
+        index = dequeue(nodes)
+        a = copy.deepcopy(nodes.pop(index))
+        print(len(nodes))
+        if ( a.goalTest() ):
+            a.disp()
+            return a
+        expanded = expand(a)
+
+        nodes = queueingFunction(expanded, index, nodes, heurestic)
+        
+def uniformSearchHeuristic( problem ):
+    return 0
+        
+def misplacedTilesHeuristic( problem ):
+    misplacedTiles = 0
+    check = problem.getState()
+
+    for i in range(DIMENSIONS):
+        for j in range(DIMENSIONS):
+            if ( check[i][j] != GOALSTATE[i][j] and GOALSTATE[i][j] != ' '):
+                    misplacedTiles+=1
+ 
+    return misplacedTiles
+            
+def absVal( a ):
+    if( a < 0 ):
+        a *= -1
+    return a
+
+def manhattanDistanceHeuristic( problem ):
+    totalDistance = 0
+    check = problem.getState()
+
+    for i in range(DIMENSIONS):
+        for j in range(DIMENSIONS):            
+            if( check[i][j] != ' ' ):
+                goalX = (int(check[i][j])-1) % DIMENSIONS
+                goalY = (int(check[i][j])-1) // DIMENSIONS
+
+                distX = absVal(goalX - j)
+                distY = absVal(goalY - i)
+
+                totalDistance+= (distX + distY)
+    
+    return totalDistance
+
+def welcome():
+    print("Welcome to the 8 Puzzle solver")
+
+def chooseHeurestic():
+    
+    
+
 def main():
-    a = Puzzle()
-    b = Node(a)
-    b.disp()
-    b.moveBlankUp()
-    b.disp()
 main()
