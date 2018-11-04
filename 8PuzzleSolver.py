@@ -5,11 +5,12 @@
 import copy
 
 GOALSTATE = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', ' ']]
-INITIALSTATE = [['3', '2', '8'], ['4', '5', '6'], ['7', '1', ' ']]
+INITIALSTATE = [['8', '7', '1'], ['6', ' ', '2'], ['5', '4', '3']]
 EXPANDEDSTATES = list()
 NUMEXPANSIONS = 0
 MAXQUEUESIZE = 0
 DIMENSIONS = 3
+EXPANDFLAG = 0
 
 #A class to define a point on the puzzle
 class Point:
@@ -158,6 +159,11 @@ def dequeue( nodesList ):
 def expand( node ):
     possibleMoves = list()
     if( not hasBeenExpanded(node) ):
+        print("\nNow we are expanding: ")
+        node.disp()
+        print("It has a value of g(n): ", node.getNumMoves(), "and h(n): ", node.getWeight() - node.getNumMoves())
+
+        global NUMEXPANSIONS
         NUMEXPANSIONS+=1
         up = copy.deepcopy(node).moveBlankUp()
         down = copy.deepcopy(node).moveBlankDown()
@@ -189,10 +195,11 @@ def expand( node ):
     return possibleMoves
 
 def queueingFunction( nodesToEnqueue, index, nodesList , heurestic ):
+    global MAXQUEUESIZE
     if ( nodesList is None ):
         nodesList = list()
     for i in range(len(nodesToEnqueue)):
-        nodesToEnqueue[i].setWeight = nodesToEnqueue[i].getNumMoves() + heurestic(nodesToEnqueue[i])
+        nodesToEnqueue[i].setWeight(nodesToEnqueue[i].getNumMoves() + heurestic(nodesToEnqueue[i]))
         nodesList.insert(index, nodesToEnqueue[i])
         index+=1
 
@@ -210,12 +217,10 @@ def generalSearch( problem, heurestic):
             return None
         index = dequeue(nodes)
         a = copy.deepcopy(nodes.pop(index))
-        print(len(nodes))
         if ( a.goalTest() ):
-            a.disp()
+            print("Goal!")
             return a
         expanded = expand(a)
-
         nodes = queueingFunction(expanded, index, nodes, heurestic)
         
 def uniformSearchHeuristic( problem ):
@@ -252,14 +257,59 @@ def manhattanDistanceHeuristic( problem ):
 
                 totalDistance+= (distX + distY)
     
-    return totalDistance
+    return absVal(totalDistance)
 
-def welcome():
-    print("Welcome to the 8 Puzzle solver")
+def choosePuzzle():
+    response = -1 
+    while( response > 2 or response < 0 ):
+        response = int(input("Press 1 to use the default puzzle, or 2 to create your own\n"))
+        if( response > 2 or response < 0):
+            print(response, " is an invalid option\n")
 
-def chooseHeurestic():
-    
-    
+    if( response == 1 ):
+        return Puzzle()
+    else:
+        inputs = list()
+
+        print("Please use spaces to separate each value, and use 0 as your blank")
+        inputs.append(input("Please input the first row\t"))
+        inputs.append(input("Please input the second row\t"))
+        inputs.append(input("Please input the third row\t"))
+
+        puzzInit = list()
+        for i in inputs:
+            check = i.split()
+            if ( '0' in check ):
+                blankLoc = check.index('0')
+                check[blankLoc] = ' '
+            puzzInit.append(check)
+        
+        return Puzzle( DIMENSIONS, puzzInit )
+
+def chooseHeuristic():
+    print("Please choose your heuristic")
+    print(" 1. Uniform Search Hueristic (WARNING: MAY TAKE A LONG TIME)")
+    print(" 2. Misplaced Tiles Heuristic")
+    print(" 3. Manhattan Distance Heuristic")
+
+    response = -1
+    while(response < 0 or response > 3):
+        response = int(input("Please enter your choice: "))
+        if( response > 3 or response < 0):
+            print(response, " is an invalid option\n")
+
+    if (response == 1):
+        return uniformSearchHeuristic
+    elif (response == 2):
+        return misplacedTilesHeuristic
+    else:
+        return manhattanDistanceHeuristic
 
 def main():
+    problem = choosePuzzle()
+    a = generalSearch(problem, chooseHeuristic())
+
+    print("\nTo solve this problem, the search algorithm expanded nodes", NUMEXPANSIONS, "times")
+    print("The max number of nodes in the queue at any time was", MAXQUEUESIZE )
+    print("The depth of the goal node was", a.getNumMoves())
 main()
