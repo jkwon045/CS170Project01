@@ -85,13 +85,34 @@ class Puzzle:
         for i in self._state:
             print(i, '\n')
 
+#use copy.deepcopy in order to create new instances of class :)
+class Node:
+    def __init__(self, puzz, g_n = 0):
+        self._state = copy.deepcopy(puzz)
+        self._g_n = g_n
+    def __eq__ ( self, other ):
+        if( self._state == other._state ):
+            return True
+        return False
+    def getState(self):
+        return self._state.getState()
+    def getMoves(self):
+        return self._g_n
+    def moveBlankRight( self ):
+        self._state.moveBlankRight()
+    def moveBlankLeft( self ):
+        self._state.moveBlankLeft()
+    def moveBlankUp( self ):
+        self._state.moveBlankUp()
+    def moveBlankDown(self ):
+        self._state.moveBlankDown()
+    def disp( self ):
+        self._state.disp()
+
 def main():
     a = Puzzle()
-    b = copy.deepcopy(a)
-    a.disp()
+    b = Node(a)
     b.disp()
-    b.moveBlankRight()
-    a.disp()
+    b.moveBlankUp()
     b.disp()
-
 main()
