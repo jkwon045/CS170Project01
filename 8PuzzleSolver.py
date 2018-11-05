@@ -10,7 +10,7 @@ EXPANDEDSTATES = list()
 NUMEXPANSIONS = 0
 MAXQUEUESIZE = 0
 DIMENSIONS = 3
-EXPANDFLAG = 0
+EXPANDFLAG = False
 
 #A class to define a point on the puzzle
 class Point:
@@ -91,16 +91,12 @@ class Node:
         self._state = copy.deepcopy(state)
         self._g_n = g_n
         self._f_n = g_n
-        self._prevState = None
 
     def __eq__ ( self, other ):
         return self._state == other._state
 
     def getState(self):
         return self._state.getState()
-    
-    def getPrevState(self):
-        return self._prevState
 
     def getNumMoves(self):
         return self._g_n
@@ -158,40 +154,41 @@ def dequeue( nodesList ):
         
 def expand( node ):
     possibleMoves = list()
-    if( not hasBeenExpanded(node) ):
+
+    if(EXPANDFLAG):
         print("\nNow we are expanding: ")
         node.disp()
         print("It has a value of g(n): ", node.getNumMoves(), "and h(n): ", node.getWeight() - node.getNumMoves())
 
-        global NUMEXPANSIONS
+    global NUMEXPANSIONS
+
+    up = copy.deepcopy(node).moveBlankUp()
+    down = copy.deepcopy(node).moveBlankDown()
+    left = copy.deepcopy(node).moveBlankLeft()
+    right = copy.deepcopy(node).moveBlankRight()
+
+    possibleMoves.append(up)
+    possibleMoves.append(down)
+    possibleMoves.append(left)
+    possibleMoves.append(right)
+
+    indexToRemove = list()
+    for i in range(len(possibleMoves)):
+        appended = False
+        if (possibleMoves[i].getState() == node.getState()):
+            indexToRemove.append(i)
+        elif ( hasBeenExpanded(possibleMoves[i]) ):
+            indexToRemove.append(i)
+        possibleMoves[i].setPrevState(node.getState())
+        
+    #sort indices and reverse in order to remove all values
+    if(len(indexToRemove) > 0):
+        indexToRemove.reverse()
+        for i in range( len( indexToRemove ) ):
+            del possibleMoves[indexToRemove[i]]
+
+    if(len(possibleMoves) > 0):
         NUMEXPANSIONS+=1
-        up = copy.deepcopy(node).moveBlankUp()
-        down = copy.deepcopy(node).moveBlankDown()
-        left = copy.deepcopy(node).moveBlankLeft()
-        right = copy.deepcopy(node).moveBlankRight()
-
-        possibleMoves.append(up)
-        possibleMoves.append(down)
-        possibleMoves.append(left)
-        possibleMoves.append(right)
-    
-
-        indexToRemove = list()
-        for i in range(len(possibleMoves)):
-            if (possibleMoves[i].getState() == node.getState()):
-                indexToRemove.append(i)
-            if ( possibleMoves[i].getPrevState() is not None): #previous state is initialized
-                #if we go back to the previous state
-                if (possibleMoves[i].getState() == possibleMoves[i].getPrevState()):
-                    indexToRemove.append(i)
-            possibleMoves[i].setPrevState(node.getState())
-            
-        #sort indices and reverse in order to remove all values
-        if(len(indexToRemove) > 0):
-            indexToRemove.reverse()
-            for i in range( len( indexToRemove ) ):
-                del possibleMoves[indexToRemove[i]]
-
     return possibleMoves
 
 def queueingFunction( nodesToEnqueue, index, nodesList , heurestic ):
@@ -305,11 +302,22 @@ def chooseHeuristic():
     else:
         return manhattanDistanceHeuristic
 
+def setExpand():
+    val = int(input("Enter 1 to display the node that is expanding, otherwise press 2\n"))
+    global EXPANDFLAG
+    if( val == 1 ):
+        EXPANDFLAG = True
+    else:
+        EXPANDFLAG = False
+
 def main():
     problem = choosePuzzle()
-    a = generalSearch(problem, chooseHeuristic())
+    h = chooseHeuristic()
+    setExpand()
+    a = generalSearch(problem, h)
 
-    print("\nTo solve this problem, the search algorithm expanded nodes", NUMEXPANSIONS, "times")
-    print("The max number of nodes in the queue at any time was", MAXQUEUESIZE )
-    print("The depth of the goal node was", a.getNumMoves())
+    if( a is not None):
+        print("\nTo solve this problem, the search algorithm expanded nodes", NUMEXPANSIONS, "times")
+        print("The max number of nodes in the queue at any time was", MAXQUEUESIZE )
+        print("The depth of the goal node was", a.getNumMoves())
 main()
